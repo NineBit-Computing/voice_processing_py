@@ -81,16 +81,101 @@
 
 ##############################################################################
 
-import librosa
+# import matplotlib.pyplot as plt
+# from pydub import AudioSegment
+# import speech_recognition as ss
+# import noisereduce as nr
+# import librosa
+
+# # Load the audio file
+# audio_path = 'voice.wav'
+# audio = AudioSegment.from_wav(audio_path)
+
+# # Plot the waveform before normalization
+# plt.figure(figsize=(10, 4))
+# plt.plot(audio.get_array_of_samples(), color='b')
+# plt.title('Waveform before Normalization')
+# plt.xlabel('Sample')
+# plt.ylabel('Amplitude')
+# plt.tight_layout()
+# plt.show()
+
+# # Apply noise reduction
+# audio_data = audio.get_array_of_samples()
+# reduced_noise = nr.reduce_noise(y=audio_data, sr=audio.frame_rate)
+
+# # Export the noise-reduced audio to a temporary WAV file
+# temp_path = 'clear_audio.wav'
+# normalized_audio = AudioSegment(
+#     reduced_noise.tobytes(),
+#     frame_rate=audio.frame_rate,
+#     sample_width=audio.sample_width,
+#     channels=audio.channels
+# )
+# # normalized_audio = normalized_audio + 16
+# normalized_audio.export(temp_path, format='wav')
+
+# # Load the normalized audio using librosa
+# y, sr = librosa.load(temp_path)
+
+# # Plot the waveform after normalization
+# plt.figure(figsize=(10, 4))
+# plt.plot(y, color='b')
+# plt.title('Waveform after Normalization')
+# plt.xlabel('Sample')
+# plt.ylabel('Amplitude')
+# plt.tight_layout()
+# plt.show()
+
+# # Perform speech-to-text conversion using the normalized audio
+# r = ss.Recognizer()
+# with ss.AudioFile(temp_path) as source:
+#     audio_data = r.record(source)  # Load audio to memory
+#     text = r.recognize_google(audio_data)
+
+# print("Text from speech:", text)
+
+
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+import speech_recognition as ss
+from gramformer import Gramformer
+import librosa
+import torch
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+set_seed(5212)
+
+def correct_text_with_gramformer(text):
+    # Initialize Gramformer
+    gramformer = Gramformer(models=1)
+
+    # Split the text into smaller chunks
+    chunk_size = 200  # Adjust the chunk size as needed
+    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+
+    # Correct each chunk and concatenate the results
+    corrected_chunks = []
+    for chunk in chunks:
+        corrected_sentences = gramformer.correct(chunk)
+        corrected_sentences_str = ' '.join(corrected_sentences)
+        corrected_chunks.append(corrected_sentences_str)
+
+    corrected_text = ' '.join(corrected_chunks)
+
+    return corrected_text
 
 # Load the audio file
-audio_path = 'Recording2.wav'  
+audio_path = 'voice.wav'
 audio = AudioSegment.from_wav(audio_path)
 
 y, sr = librosa.load(audio_path)
 time1 = librosa.times_like(y, sr=sr)
+
 # Plot the waveform
 plt.figure(figsize=(10, 4))
 plt.plot(time1, y, color='b')
@@ -106,15 +191,10 @@ normalized_audio = audio.apply_gain(+15.0)  # Adjust gain as needed
 
 # Export the normalized audio to a temporary WAV file
 temp_path = 'clear_audio.wav'
-# audio1= AudioSegment.from_wav(temp_path)
-# slower_audio = audio1.speed(factor=0.5)
 normalized_audio.export(temp_path, format='wav')
-
 
 # Load the normalized audio
 y, sr = librosa.load(temp_path)
-
-# Create a time axis in seconds
 time = librosa.times_like(y, sr=sr)
 
 # Plot the waveform
@@ -126,5 +206,18 @@ plt.ylabel('Amplitude')
 plt.xlim(time[0], time[-1])
 plt.tight_layout()
 plt.show()
+
+# Perform speech-to-text conversion using the normalized audio
+r = ss.Recognizer()
+with ss.AudioFile(temp_path) as source:
+    audio_data = r.record(source)  # Load audio to memory
+    text = r.recognize_google(audio_data)
+
+print("Text from speech:", text)
+
+# Correct grammatical errors in the recognized text
+corrected_text = correct_text_with_gramformer(text)
+print("Corrected text:", corrected_text)
+
 
 
