@@ -83,8 +83,8 @@
 
 ############################## speech to text - torch#######################################################
 # import torch
-# import zipfile
-# import torchaudio
+# # import zipfile
+# # import torchaudio
 # from glob import glob
 
 # device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
@@ -132,13 +132,13 @@
 # assert language in available_languages
 
 # # load the actual tf model
-# torch.hub.download_url_to_file(models.stt_models.en.latest.tf, 'tf_model.tar.gz')
+# torch.hub.download_url_to_file(models.stt_models.en.latest.tf, 'dev-clean-tar.gz')
 # subprocess.run('rm -rf tf_model && mkdir tf_model && tar xzfv tf_model.tar.gz -C tf_model',  shell=True, check=True)
 # tf_model = tf.saved_model.load('tf_model')
 
 # # download a single file in any format compatible with TorchAudio
 # # torch.hub.download_url_to_file('https://opus-codec.org/static/examples/samples/speech_orig.wav', dst ='speech_orig.wav', progress=True)
-# test_files = ['voice.wav']
+# test_files = ['voice3.wav']
 # batches = split_into_batches(test_files, batch_size=10)
 # input = prepare_model_input(read_batch(batches[0]))
 
@@ -151,5 +151,103 @@
 # import whisper
 
 # model = whisper.load_model("base")
-# result = model.transcribe("voice1.mp3")
-# print(result["text"])
+
+# # load audio and pad/trim it to fit 30 seconds
+# audio = whisper.load_audio("voice3.wav")
+# audio = whisper.pad_or_trim(audio)
+
+# # make log-Mel spectrogram and move to the same device as the model
+# mel = whisper.log_mel_spectrogram(audio).to(model.device)
+
+# # detect the spoken language
+# _, probs = model.detect_language(mel)
+# print(f"Detected language: {max(probs, key=probs.get)}")
+
+# # decode the audio
+# options = whisper.DecodingOptions()
+# result = whisper.decode(model, mel, options)
+
+# # print the recognized text
+# print(result.text)
+
+# importing libraries 
+import speech_recognition as sr 
+import os 
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
+import torch
+from glob import glob
+
+# create a speech recognition object
+r = sr.Recognizer()
+
+# a function to recognize speech in the audio file
+# so that we don't repeat ourselves in in other functions
+def transcribe_audio(path):
+    # use the audio file as the audio source
+    with sr.AudioFile(path) as source:
+        audio_listened = r.record(source)
+        # try converting it to text
+        text = r.recognize_google(audio_listened)
+    return text
+
+# a function that splits the audio file into chunks on silence
+# and applies speech recognition
+def get_large_audio_transcription_on_silence(path):
+    """Splitting the large audio file into chunks
+    and apply speech recognition on each of these chunks"""
+    # open the audio file using pydub
+    sound = AudioSegment.from_file(path)  
+    # split audio sound where silence is 500 miliseconds or more and get chunks
+    chunks = split_on_silence(sound,
+        # experiment with this value for your target audio file
+        min_silence_len = 500,
+        # adjust this per requirement
+        silence_thresh = sound.dBFS-14,
+        # keep the silence for 1 second, adjustable as well
+        keep_silence=500,
+    )
+    folder_name = "audio-chunks"
+    # create a directory to store the audio chunks
+    if not os.path.isdir(folder_name):
+        os.mkdir(folder_name)
+    whole_text = ""
+    # process each chunk 
+    for i, audio_chunk in enumerate(chunks, start=1):
+        # export audio chunk and save it in
+        # the `folder_name` directory.
+        chunk_filename = os.path.join(folder_name, f"chunk{i}.wav")
+        audio_chunk.export(chunk_filename, format="wav")
+        # recognize the chunk
+        try:
+            text = transcribe_audio(chunk_filename)
+        except sr.UnknownValueError as e:
+            print("Error:", str(e))
+        else:
+            text = f"{text.capitalize()}. "
+            # print(chunk_filename, ":", text)
+            whole_text += text
+    # return the text for all chunks detected
+    return whole_text
+
+path = "voice3.wav"
+print("\nFull text:", get_large_audio_transcription_on_silence(path))
+
+
+# Perform speech-to-text conversion using the pytorch library
+device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
+model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
+                                       model='silero_stt',
+                                       language='en', # also available 'de', 'es'
+                                       device=device)
+(read_batch, split_into_batches,
+ read_audio, prepare_model_input) = utils  # see function signature for details
+
+test_files = glob('voice3.wav')
+batches = split_into_batches(test_files, batch_size=10)
+input = prepare_model_input(read_batch(batches[0]),
+                            device=device)
+
+output = model(input)
+for example in output:
+    print(decoder(example.cpu()))
