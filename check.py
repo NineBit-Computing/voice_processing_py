@@ -142,6 +142,7 @@ import speech_recognition as ss
 from gramformer import Gramformer
 import librosa
 import torch
+from glob import glob
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -170,7 +171,7 @@ def correct_text_with_gramformer(text):
     return corrected_text
 
 # Load the audio file
-audio_path = 'voice.wav'
+audio_path = 'voice3.wav'
 audio = AudioSegment.from_wav(audio_path)
 
 y, sr = librosa.load(audio_path)
@@ -187,37 +188,53 @@ plt.tight_layout()
 plt.show()
 
 # Normalize the audio to increase the volume
-normalized_audio = audio.apply_gain(+15.0)  # Adjust gain as needed
+# normalized_audio = audio.apply_gain(+15.0)  # Adjust gain as needed
 
 # Export the normalized audio to a temporary WAV file
-temp_path = 'clear_audio.wav'
-normalized_audio.export(temp_path, format='wav')
+# temp_path = 'clear_audio.wav'
+# temp_path.export(temp_path, format='wav')
 
 # Load the normalized audio
-y, sr = librosa.load(temp_path)
-time = librosa.times_like(y, sr=sr)
+# y, sr = librosa.load(temp_path)
+# time = librosa.times_like(y, sr=sr)
 
-# Plot the waveform
-plt.figure(figsize=(10, 4))
-plt.plot(time, y, color='b')
-plt.title('Normalized Waveform')
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.xlim(time[0], time[-1])
-plt.tight_layout()
-plt.show()
+# # Plot the waveform
+# plt.figure(figsize=(10, 4))
+# plt.plot(time, y, color='b')
+# plt.title('Normalized Waveform')
+# plt.xlabel('Time (s)')
+# plt.ylabel('Amplitude')
+# plt.xlim(time[0], time[-1])
+# plt.tight_layout()
+# plt.show()
 
-# Perform speech-to-text conversion using the normalized audio
+# Perform speech-to-text conversion using the speech_recoginaton library
 r = ss.Recognizer()
-with ss.AudioFile(temp_path) as source:
+with ss.AudioFile('Recording2.wav') as source:
     audio_data = r.record(source)  # Load audio to memory
     text = r.recognize_google(audio_data)
-
 print("Text from speech:", text)
 
-# Correct grammatical errors in the recognized text
-corrected_text = correct_text_with_gramformer(text)
-print("Corrected text:", corrected_text)
+# Perform speech-to-text conversion using the pytorch library
+device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
+model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
+                                       model='silero_stt',
+                                       language='en', # also available 'de', 'es'
+                                       device=device)
+(read_batch, split_into_batches,
+ read_audio, prepare_model_input) = utils  # see function signature for details
 
+test_files = glob('Recording2.wav')
+batches = split_into_batches(test_files, batch_size=10)
+input = prepare_model_input(read_batch(batches[0]),
+                            device=device)
+
+output = model(input)
+for example in output:
+    print(decoder(example.cpu()))
+
+# # Correct grammatical errors in the recognized text
+# corrected_text = correct_text_with_gramformer(text)
+# print("Corrected text:", corrected_text)
 
 
