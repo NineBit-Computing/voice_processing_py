@@ -252,62 +252,90 @@
 # for example in output:
 #     print(decoder(example.cpu()))
 
-# from faster_whisper import WhisperModel
+## Mic using Wisper
 
-# model_size = "large-v3"
+# import pyaudio
+# import wave
+# import whisper
 
-# # Run on GPU with FP16
-# model = WhisperModel(model_size, device="cuda", compute_type="float16")
+# print("Whisper Output")
 
-# # or run on GPU with INT8
-# # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
-# # or run on CPU with INT8
-# # model = WhisperModel(model_size, device="cpu", compute_type="int8")
+# # Function to record audio from microphone
+# def record_audio(filename, seconds=5, chunk=1024, channels=1, rate=44100):
+#     p = pyaudio.PyAudio()
+#     stream = p.open(format=pyaudio.paInt16,
+#                     channels=channels,
+#                     rate=rate,
+#                     input=True,
+#                     frames_per_buffer=chunk)
+#     print("Recording...")
+#     frames = []
+#     for i in range(0, int(rate / chunk * seconds)):
+#         data = stream.read(chunk)
+#         frames.append(data)
+#     print("Finished recording.")
+#     stream.stop_stream()
+#     stream.close()
+#     p.terminate()
 
-# segments, info = model.transcribe("voice1.mp3", beam_size=5)
+#     wf = wave.open(filename, 'wb')
+#     wf.setnchannels(channels)
+#     wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+#     wf.setframerate(rate)
+#     wf.writeframes(b''.join(frames))
+#     wf.close()
 
-# print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
+# # Record audio and save it to a file
+# record_audio("Recording.wav")
 
-# for segment in segments:
-#     print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+# # Transcribe the recorded audio
+# model = whisper.load_model("base")
+# result = model.transcribe("Recording.wav")
+# print("Transcription:", result["text"])
+
 
 ####################Model - whisper##########
 
+print("Whisper Output")
 import whisper
 
-# model = whisper.load_model("base")
-# result = model.transcribe("samyak1.mp4")
-# print(result["text"])
+model = whisper.load_model("base")
+result = model.transcribe("Speech_S/samyak13.mp4")
+print(result["text"])
 
 ####################Model - faster whisper##########
 
-# from faster_whisper import WhisperModel
+print("Faster Whisper Output")
+from faster_whisper import WhisperModel
 
-# model = WhisperModel("distil-medium.en")
+model = WhisperModel("distil-medium.en")
 
-# segments, info = model.transcribe("samyak1.mp4")
-# for segment in segments:
-#     # print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
-#     print(segment.text)
+segments, info = model.transcribe("Speech_S/samyak13.mp4")
+for segment in segments:
+    # print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+    print(segment.text)
 
 
-# ############################## speech to text - torch#######################################################
-# import torch
-# from glob import glob
+############################## speech to text - torch#######################################################
 
-# device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
-# model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
-#                                        model='silero_stt',
-#                                        language='en', # also available 'de', 'es'
-#                                        device=device)
-# (read_batch, split_into_batches,
-#  read_audio, prepare_model_input) = utils 
+print("Torch Output")
+import torch
+from glob import glob
 
-# test_files = glob('samyak1.mp4')
-# batches = split_into_batches(test_files, batch_size=10)
-# input = prepare_model_input(read_batch(batches[0]),
-#                             device=device)
+device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
+model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
+                                       model='silero_stt',
+                                       language='en', # also available 'de', 'es'
+                                       device=device)
+(read_batch, split_into_batches,
+ read_audio, prepare_model_input) = utils 
 
-# output = model(input)
-# for example in output:
-#     print(decoder(example.cpu()))
+test_files = glob('Speech_S/samyak13.mp4')
+batches = split_into_batches(test_files, batch_size=10)
+input = prepare_model_input(read_batch(batches[0]),
+                            device=device)
+
+output = model(input)
+for example in output:
+    print(decoder(example.cpu()))
+
