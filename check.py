@@ -135,57 +135,58 @@
 
 # print("Text from speech:", text)
 
+############# Grammatically mistake Checker ####################################
 
-import matplotlib.pyplot as plt
-from pydub import AudioSegment
-import speech_recognition as ss
-from gramformer import Gramformer
-import librosa
-import torch
-from glob import glob
+# import matplotlib.pyplot as plt
+# from pydub import AudioSegment
+# import speech_recognition as ss
+# from gramformer import Gramformer
+# import librosa
+# import torch
+# from glob import glob
 
-def set_seed(seed):
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+# def set_seed(seed):
+#     torch.manual_seed(seed)
+#     if torch.cuda.is_available():
+#         torch.cuda.manual_seed_all(seed)
 
-set_seed(5212)
+# set_seed(5212)
 
-def correct_text_with_gramformer(text):
-    # Initialize Gramformer
-    gramformer = Gramformer(models=1)
+# def correct_text_with_gramformer(text):
+#     # Initialize Gramformer
+#     gramformer = Gramformer(models=1)
 
-    # Split the text into smaller chunks
-    chunk_size = 200  # Adjust the chunk size as needed
-    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+#     # Split the text into smaller chunks
+#     chunk_size = 200  # Adjust the chunk size as needed
+#     chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
-    # Correct each chunk and concatenate the results
-    corrected_chunks = []
-    for chunk in chunks:
-        corrected_sentences = gramformer.correct(chunk)
-        corrected_sentences_str = ' '.join(corrected_sentences)
-        corrected_chunks.append(corrected_sentences_str)
+#     # Correct each chunk and concatenate the results
+#     corrected_chunks = []
+#     for chunk in chunks:
+#         corrected_sentences = gramformer.correct(chunk)
+#         corrected_sentences_str = ' '.join(corrected_sentences)
+#         corrected_chunks.append(corrected_sentences_str)
 
-    corrected_text = ' '.join(corrected_chunks)
+#     corrected_text = ' '.join(corrected_chunks)
 
-    return corrected_text
+#     return corrected_text
 
-# Load the audio file
-audio_path = 'voice3.wav'
-audio = AudioSegment.from_wav(audio_path)
+# # Load the audio file
+# audio_path = 'voice3.wav'
+# audio = AudioSegment.from_wav(audio_path)
 
-y, sr = librosa.load(audio_path)
-time1 = librosa.times_like(y, sr=sr)
+# y, sr = librosa.load(audio_path)
+# time1 = librosa.times_like(y, sr=sr)
 
-# Plot the waveform
-plt.figure(figsize=(10, 4))
-plt.plot(time1, y, color='b')
-plt.title('Normalized Waveform')
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.xlim(time1[0], time1[-1])
-plt.tight_layout()
-plt.show()
+# # Plot the waveform
+# plt.figure(figsize=(10, 4))
+# plt.plot(time1, y, color='b')
+# plt.title('Normalized Waveform')
+# plt.xlabel('Time (s)')
+# plt.ylabel('Amplitude')
+# plt.xlim(time1[0], time1[-1])
+# plt.tight_layout()
+# plt.show()
 
 # Normalize the audio to increase the volume
 # normalized_audio = audio.apply_gain(+15.0)  # Adjust gain as needed
@@ -209,29 +210,29 @@ plt.show()
 # plt.show()
 
 # Perform speech-to-text conversion using the speech_recoginaton library
-r = ss.Recognizer()
-with ss.AudioFile('Recording2.wav') as source:
-    audio_data = r.record(source)  # Load audio to memory
-    text = r.recognize_google(audio_data)
-print("Text from speech:", text)
+# r = ss.Recognizer()
+# with ss.AudioFile('Recording2.wav') as source:
+#     audio_data = r.record(source)  # Load audio to memory
+#     text = r.recognize_google(audio_data)
+# print("Text from speech:", text)
 
-# Perform speech-to-text conversion using the pytorch library
-device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
-model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
-                                       model='silero_stt',
-                                       language='en', # also available 'de', 'es'
-                                       device=device)
-(read_batch, split_into_batches,
- read_audio, prepare_model_input) = utils  # see function signature for details
+# # Perform speech-to-text conversion using the pytorch library
+# device = torch.device('cpu')  # gpu also works, but our models are fast enough for CPU
+# model, decoder, utils = torch.hub.load(repo_or_dir='snakers4/silero-models',
+#                                        model='silero_stt',
+#                                        language='en', # also available 'de', 'es'
+#                                        device=device)
+# (read_batch, split_into_batches,
+#  read_audio, prepare_model_input) = utils  # see function signature for details
 
-test_files = glob('Recording2.wav')
-batches = split_into_batches(test_files, batch_size=10)
-input = prepare_model_input(read_batch(batches[0]),
-                            device=device)
+# test_files = glob('Recording2.wav')
+# batches = split_into_batches(test_files, batch_size=10)
+# input = prepare_model_input(read_batch(batches[0]),
+#                             device=device)
 
-output = model(input)
-for example in output:
-    print(decoder(example.cpu()))
+# output = model(input)
+# for example in output:
+#     print(decoder(example.cpu()))
 
 # # Correct grammatical errors in the recognized text
 # corrected_text = correct_text_with_gramformer(text)
